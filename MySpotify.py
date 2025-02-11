@@ -1,60 +1,70 @@
-import pyarrow.parquet as pq
-import pyarrow.compute as pc
-import pandas as pd
-from tqdm import tqdm
 import os
-from utils.readfiles import Convert_To_Parquet, DATA_FOLDER
-from utils.Top_Tracks import get_best_tracks_df
-from utils.Top_Tracks_Genre import get_best_tracks_by_genre
+
+from PrepocessData.ReadZip import upzip_data
+from PrepocessData.ConvertFiles import Convert_msd_to_parquet, Convert_Triplets_to_parquet, Convert_unique_tracks_to_parquet, Convert_mxm_to_parquet
+from PrepocessData.MergeData import Merge_All_Data
+
+from TopTracks.Top_Listen_Tracks import Get_Top_Tracks, Get_TopTracks_ByGenre
+DATA_FOLDER = "data/"
+PARQUET_FOLDER = "parquet/"
 
 class MySpotify:
-    fileNames = ["p02_msd_tagtraum_cd2", "mxm_dataset_train", "p02_unique_tracks", "train_triplets"]
-    def __init__(self, path : str):
-        if not isinstance(path, str):
-            raise TypeError("path must be a string")
-        if not os.path.exists(path):
-            raise ValueError("path does not exist")
-        if not os.path.isdir(path):
-            raise ValueError("path must be a directory")
-        self._path = path
-        self._chunk_size = 10000
+    fileNames = ["msd_tagtraum_cd2.cls", "mxm_dataset_train.txt", "unique_tracks.txt", "train_triplets.txt"]
 
-    def PrepareData(self):
-        Convert_To_Parquet(self._path, self._chunk_size)
-        self.getData()
+    def __init__(self, zipFile_abspath : str = ""):
+        self._Data_folder = os.path.join(os.path.dirname(os.path.realpath(__file__)), DATA_FOLDER)
+        self._Parquet_Data_dir = None
+        if not os.path.exists(self._Data_folder):
+            if not os.path.exists(zipFile_abspath):
+                raise ValueError("No zip file provided and not data folder found")
+            else:
+                upzip_data(zipFile_abspath, self._Data_folder, self.fileNames)
 
-    def getData(self):
-        def get_file_path(file_name):
-            file_path = os.path.join(self._path, f"{DATA_FOLDER}/{file_name}.parquet")
-            if not os.path.exists(file_path):
-                raise ValueError(f"{file_name} not found!!")
-            return file_path
+        if any([not os.path.exists(os.path.join(self._Data_folder, file)) for file in self.fileNames]):
+            upzip_data(zipFile_abspath, self._Data_folder, self.fileNames)
 
-        self._msdData = pq.ParquetFile(get_file_path("p02_msd_tagtraum_cd2"))
-        self._mxmData = pq.ParquetFile(get_file_path("mxm_dataset_train"))
-        self._uniqueTracks = pq.ParquetFile(get_file_path("p02_unique_tracks"))
-        self._trainTriplets = pq.ParquetFile(get_file_path("train_triplets"))
+        self._Parquet_Data_dir = os.path.join(self._Data_folder, PARQUET_FOLDER)
+        print("All files are present!")
 
-    # Get the Top Tracks Dataframe:
+    def convert_files(self):
+        if not os.path.exists(self._Parquet_Data_dir):
+            os.makedirs(self._Parquet_Data_dir, exist_ok=True)
+        kwargs = {
+            "Data_folder": self._Data_folder,
+            "output_dir": self._Parquet_Data_dir,
+            "fileNames": self.fileNames,
+            "buffer_size": 10000
+        }
+        Convert_msd_to_parquet(**kwargs)
+        Convert_Triplets_to_parquet(**kwargs)
+        Convert_unique_tracks_to_parquet(**kwargs)
+        ######
+        Convert_mxm_to_parquet(**kwargs)
+        print("All files converted to parquet!!")
 
-    def get_Top_Tracks(self, numoftracks=250):
-        return get_best_tracks_df(self._uniqueTracks, self._trainTriplets, numoftracks)
+    def PreProcess_Data(self):
+        Merge_All_Data(self._Parquet_Data_dir)
 
-    ################################################################################################
-    # Top tracks by genre
+    def get_Top_Tracks(self, num_of_tracks):
+        if not os.path.exists(self._Parquet_Data_dir):
+            raise ValueError("No parquet data found")
 
-    def get_Top_Tracks_By_Genre(self, genre : str="Rock", numoftracks=100):
-        return get_best_tracks_by_genre(self._uniqueTracks, self._trainTriplets, self._msdData, numoftracks, genre)
+        return Get_Top_Tracks(self._Parquet_Data_dir, num_of_tracks)
 
-    ################################################################################################
-    # Cleanup
-    def cleanup(self):
-        self._msdData = None
-        self._mxmData = None
-        self._uniqueTracks = None
-        self._trainTriplets = None
+    def Get_TopTracks_By_Genre(self, num_of_tracks, genre, drop_genre=False):
+        if not os.path.exists(self._Parquet_Data_dir):
+            raise ValueError("No parquet data found")
 
-    ################################################################################################
-    @property
-    def path(self):
-        return self._path
+        return Get_TopTracks_ByGenre(self._Parquet_Data_dir, num_of_tracks, genre, drop_genre)
+
+    # def PreProcessData(self):
+    #     if not os.path.exists(self._Parquet_Data_dir):
+    #         raise ValueError("No parquet data found")
+    #     kwargs = {
+    #         "Data_folder": self._Parquet_Data_dir,
+    #         "output_dir": self._Parquet_Data_dir,
+    #         "fileNames": self.fileNames
+    #     }
+
+    #     play_count_prepare(**kwargs)
+        
