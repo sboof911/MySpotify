@@ -148,7 +148,7 @@ def Merge_Tracks_Genre(Data_folder):
     num_row_groups = Merged_songs.metadata.num_row_groups
     writer = None
     Merged_data = []
-    with tqdm(total=int(num_row_groups), desc="Merging Data") as pbar:
+    with tqdm(total=int(num_row_groups), desc="Merging Genre Data") as pbar:
         for rg in range(num_row_groups):
             table = Merged_songs.read_row_group(rg)
             mask = pc.is_in(msd["track_id"], table["track_id"])
