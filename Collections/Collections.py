@@ -13,6 +13,8 @@ from spellchecker import SpellChecker
 from gensim.models import Word2Vec
 from sklearn.cluster import KMeans
 
+from.Classifier import Classifier
+
 def filter_words(words):
     stop_words = set(stopwords.words("english"))
     filtered = []
@@ -38,13 +40,13 @@ def get_word_themes(word):
 
     return list(synonyms)
 
-class Collections:
+class Collections(Classifier):
     def __init__(self, Parquet_Data_dir, debug=False):
         self._debug = debug
         self._Parquet_Data_dir = Parquet_Data_dir
-        self._Classifier = None
         nltk_download('wordnet')
         nltk_download("stopwords")
+        super().__init__(Parquet_Data_dir, debug)
 
     def Get_tracks_data(self, tracks_ID_df, track_id):
         pf = ParquetFile(os.path.join(self._Parquet_Data_dir, "Merged_tracks_data.parquet"))
@@ -120,16 +122,7 @@ class Collections:
 
         return self.get_scores(pf, theme, columns_in_theme, num_of_tracks, track_id)
 
-    def Labeling(self, labels, num_of_tracks_for_each_label=500):
-        columns = ["track_id", "label"]
-        labeled_df = pd.DataFrame(columns=columns)
-        for label in labels:
-            data = self.Word2Vec(label, num_of_tracks=num_of_tracks_for_each_label, track_id=True)
-            data["label"] = label
-            labeled_df = pd.concat([labeled_df, data[columns]], axis=0)
+    def Classification(self, labels, theme, num_of_tracks=100):
+        self.Label_Data(labels, self.Word2Vec)
 
-        return labeled_df
-
-    def Classification(self, labels, theme, num_of_tracks = 100):
-        Labeled_data = self.Labeling(labels)
-        
+        return None
