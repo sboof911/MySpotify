@@ -46,22 +46,16 @@ def Sum_All_Play_Counts(Data_folder, output_dir):
         )
 
     writer = None
-    Error = False
     try:
         writer = pq.ParquetWriter(output_path, schema=table.schema)
         writer.write_table(table)
     except Exception as e:
-        print(f"Error in writing data {e}")
-        Error = True
-    finally:
         if writer is not None:
             writer.close()
-        else:
-            raise ValueError("No data found in file")
+        raise Exception(f"Error in writing data {e}")
 
     data_count.clear()
-    if not Error:
-        print(f"Play count data prepared successfully!!")
+    print(f"Play count data prepared successfully!!")
 
 def Merge_Song_Data(Data_folder):
     Merged_data_path = os.path.join(Data_folder, "Merged_Song_data.parquet")
@@ -116,17 +110,16 @@ def Merge_Song_Data(Data_folder):
                                     ("title", pa.string()),
                                     ("play_count", pa.int64())],)
                 )
+
                 if writer is None:
                     writer = pq.ParquetWriter(Merged_data_path, schema=table.schema)
                 try:
                     writer.write_table(table)
                 except Exception as e:
-                    print(f"Error in writing data {e}")
-                finally:
                     if writer is not None:
                         writer.close()
-                        writer = None
-                        break
+                    raise Exception(f"Error in writing data {e}")
+
                 Merge_data.clear()
             pbar.update(1)
     if writer is None:
@@ -187,12 +180,9 @@ def Merge_Tracks_Genre(Data_folder):
                 try:
                     writer.write_table(table)
                 except Exception as e:
-                    print(f"Error in writing data {e}")
-                finally:
                     if writer is not None:
                         writer.close()
-                        writer = None
-                        break
+                    raise Exception(f"Error in writing data {e}")
                 Merged_data.clear()
 
             pbar.update(1)
@@ -214,17 +204,15 @@ def Sort_data(Data_folder):
     new_metadata[b"sorted"] = b"Y"
     table = table.replace_schema_metadata(new_metadata)
     writer = None
-    Error = False
     try:
         writer = pq.ParquetWriter(Merged_data_path, schema=table.schema)
         writer.write_table(table)
     except Exception as e:
-        print(f"Error in sorting data {e}")
-    finally:
         if writer is not None:
             writer.close()
-    if not Error:
-        print("Data Sorted successfully!!")
+        raise Exception(f"Error in writing data {e}")
+
+    print("Data Sorted successfully!!")
 
     if os.path.exists(os.path.join(Data_folder, "play_count.parquet")):
         os.remove(os.path.join(Data_folder, "play_count.parquet"))
