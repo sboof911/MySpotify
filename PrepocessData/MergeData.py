@@ -74,54 +74,54 @@ def Merge_Song_Data(Data_folder):
 
     num_row_groups = unique_tracks.metadata.num_row_groups
     writer = None
-    with tqdm(total=int(num_row_groups), desc="Merging Data") as pbar:
-        for rg in range(num_row_groups):
-            unique_tracks_data = unique_tracks.read_row_group(rg)
-            mask = pc.is_in(play_count_data["song_id"], unique_tracks_data["song_id"])
-            filtred_play_count = play_count_data.filter(mask)
-            if filtred_play_count.num_rows > 0:
-                Merge_data = []
-                for row in filtred_play_count.to_pylist():
-                    song_id = row["song_id"]
-                    mask = pc.equal(unique_tracks_data["song_id"], song_id)
-                    track_data = unique_tracks_data.filter(mask).to_pylist()
-                    if len(track_data) == 0:
-                        raise ValueError(f"Track data not found data found {track_data}")
-                    for track in track_data:
-                        Merge_data.append({"song_id": song_id, "track_id": track["track_id"],
-                                        "artist_name": track["artist_name"], "title": track["title"],
-                                        "play_count": row["play_count"]})
+    try:
+        with tqdm(total=int(num_row_groups), desc="Merging Data") as pbar:
+            for rg in range(num_row_groups):
+                unique_tracks_data = unique_tracks.read_row_group(rg)
+                mask = pc.is_in(play_count_data["song_id"], unique_tracks_data["song_id"])
+                filtred_play_count = play_count_data.filter(mask)
+                if filtred_play_count.num_rows > 0:
+                    Merge_data = []
+                    for row in filtred_play_count.to_pylist():
+                        song_id = row["song_id"]
+                        mask = pc.equal(unique_tracks_data["song_id"], song_id)
+                        track_data = unique_tracks_data.filter(mask).to_pylist()
+                        if len(track_data) == 0:
+                            raise ValueError(f"Track data not found data found {track_data}")
+                        for track in track_data:
+                            Merge_data.append({"song_id": song_id, "track_id": track["track_id"],
+                                            "artist_name": track["artist_name"], "title": track["title"],
+                                            "play_count": row["play_count"]})
 
-            mask_inverted = pc.is_in(unique_tracks_data["song_id"], play_count_data["song_id"])
-            mask_inverted = pc.invert(mask_inverted)
-            non_played_tracks = unique_tracks_data.filter(mask_inverted)
-            if non_played_tracks.num_rows > 0:
-                for row in non_played_tracks.to_pylist():
-                    Merge_data.append({"song_id": row["song_id"], "track_id": row["track_id"],
-                                       "artist_name": row["artist_name"], "title": row["title"],
-                                       "play_count": 0})
+                mask_inverted = pc.is_in(unique_tracks_data["song_id"], play_count_data["song_id"])
+                mask_inverted = pc.invert(mask_inverted)
+                non_played_tracks = unique_tracks_data.filter(mask_inverted)
+                if non_played_tracks.num_rows > 0:
+                    for row in non_played_tracks.to_pylist():
+                        Merge_data.append({"song_id": row["song_id"], "track_id": row["track_id"],
+                                        "artist_name": row["artist_name"], "title": row["title"],
+                                        "play_count": 0})
 
-            if len(Merge_data) > 0:
-                table = pa.Table.from_pylist(
-                    Merge_data,
-                    schema=pa.schema([("song_id", pa.string()),
-                                    ("track_id", pa.string()),
-                                    ("artist_name", pa.string()),
-                                    ("title", pa.string()),
-                                    ("play_count", pa.int64())],)
-                )
+                if len(Merge_data) > 0:
+                    table = pa.Table.from_pylist(
+                        Merge_data,
+                        schema=pa.schema([("song_id", pa.string()),
+                                        ("track_id", pa.string()),
+                                        ("artist_name", pa.string()),
+                                        ("title", pa.string()),
+                                        ("play_count", pa.int64())],)
+                    )
 
-                if writer is None:
-                    writer = pq.ParquetWriter(Merged_data_path, schema=table.schema)
-                try:
+                    if writer is None:
+                        writer = pq.ParquetWriter(Merged_data_path, schema=table.schema)
                     writer.write_table(table)
-                except Exception as e:
-                    if writer is not None:
-                        writer.close()
-                    raise Exception(f"Error in writing data {e}")
+                    Merge_data.clear()
+                pbar.update(1)
+    except BaseException as e:
+        if writer is not None:
+            writer.close()
+        raise
 
-                Merge_data.clear()
-            pbar.update(1)
     if writer is None:
         raise ValueError("No data found in file")
     writer.close()
@@ -141,51 +141,51 @@ def Merge_Tracks_Genre(Data_folder):
     num_row_groups = Merged_songs.metadata.num_row_groups
     writer = None
     Merged_data = []
-    with tqdm(total=int(num_row_groups), desc="Merging Genre Data") as pbar:
-        for rg in range(num_row_groups):
-            table = Merged_songs.read_row_group(rg)
-            mask = pc.is_in(msd["track_id"], table["track_id"])
-            filtered_data = msd.filter(mask)
-            for row in filtered_data.to_pylist():
-                mask = pc.equal(table["track_id"], row["track_id"])
-                for merged_row in table.filter(mask).to_pylist():
-                    Merged_data.append({"track_id": row["track_id"], "majority_genre": row["majority_genre"],
-                                        "minority_genre": row["minority_genre"], "artist_name": merged_row["artist_name"],
-                                        "title": merged_row["title"], "play_count": merged_row["play_count"],
-                                        "song_id": merged_row["song_id"]})
+    try:
+        with tqdm(total=int(num_row_groups), desc="Merging Genre Data") as pbar:
+            for rg in range(num_row_groups):
+                table = Merged_songs.read_row_group(rg)
+                mask = pc.is_in(msd["track_id"], table["track_id"])
+                filtered_data = msd.filter(mask)
+                for row in filtered_data.to_pylist():
+                    mask = pc.equal(table["track_id"], row["track_id"])
+                    for merged_row in table.filter(mask).to_pylist():
+                        Merged_data.append({"track_id": row["track_id"], "majority_genre": row["majority_genre"],
+                                            "minority_genre": row["minority_genre"], "artist_name": merged_row["artist_name"],
+                                            "title": merged_row["title"], "play_count": merged_row["play_count"],
+                                            "song_id": merged_row["song_id"]})
 
-            inverted_mask = pc.is_in(table["track_id"], msd["track_id"])
-            inverted_mask = pc.invert(inverted_mask)
-            non_merged_data = table.filter(inverted_mask)
-            for row in non_merged_data.to_pylist():
-                Merged_data.append({"track_id": row["track_id"], "majority_genre": "",
-                                    "minority_genre": "", "artist_name": row["artist_name"],
-                                    "title": row["title"], "play_count": row["play_count"],
-                                    "song_id": row["song_id"]})
+                inverted_mask = pc.is_in(table["track_id"], msd["track_id"])
+                inverted_mask = pc.invert(inverted_mask)
+                non_merged_data = table.filter(inverted_mask)
+                for row in non_merged_data.to_pylist():
+                    Merged_data.append({"track_id": row["track_id"], "majority_genre": "",
+                                        "minority_genre": "", "artist_name": row["artist_name"],
+                                        "title": row["title"], "play_count": row["play_count"],
+                                        "song_id": row["song_id"]})
 
-            if len(Merged_data) > 0:
-                table = pa.Table.from_pylist(
-                    Merged_data,
-                    schema=pa.schema([("track_id", pa.string()),
-                                    ("song_id", pa.string()),
-                                    ("title", pa.string()),
-                                    ("artist_name", pa.string()),
-                                    ("majority_genre", pa.string()),
-                                    ("minority_genre", pa.string()),
-                                    ("play_count", pa.int64())
-                                    ],)
-                )
-                if writer is None:
-                    writer = pq.ParquetWriter(Merged_tracks_path, schema=table.schema)
-                try:
+                if len(Merged_data) > 0:
+                    table = pa.Table.from_pylist(
+                        Merged_data,
+                        schema=pa.schema([("track_id", pa.string()),
+                                        ("song_id", pa.string()),
+                                        ("title", pa.string()),
+                                        ("artist_name", pa.string()),
+                                        ("majority_genre", pa.string()),
+                                        ("minority_genre", pa.string()),
+                                        ("play_count", pa.int64())
+                                        ],)
+                    )
+                    if writer is None:
+                        writer = pq.ParquetWriter(Merged_tracks_path, schema=table.schema)
                     writer.write_table(table)
-                except Exception as e:
-                    if writer is not None:
-                        writer.close()
-                    raise Exception(f"Error in writing data {e}")
-                Merged_data.clear()
+                    Merged_data.clear()
 
-            pbar.update(1)
+                pbar.update(1)
+    except BaseException as e:
+        if writer is not None:
+            writer.close()
+        raise
     if writer is None:
         raise ValueError("No data found in file")
     writer.close()

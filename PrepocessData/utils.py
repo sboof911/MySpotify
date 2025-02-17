@@ -35,6 +35,7 @@ def Convert_file_To_Parquet(file_path, output_dir, numOfLines, columns, sep, buf
 
     filename = os.path.basename(file_path)[:-4]
     output_path = os.path.join(output_dir, filename + ".parquet")
+
     if get_number_of_rows(output_path) >= numOfLines:
         print(f"File {filename} already converted to parquet!!")
         return
@@ -47,33 +48,43 @@ def Convert_file_To_Parquet(file_path, output_dir, numOfLines, columns, sep, buf
     pa_columns=schema(columns)
 
     with open(file_path, "r", errors="replace") as infile:
-        with tqdm(total=numOfLines, desc=f"Converting {filename}") as pbar:
-            for line in infile:
-                line = line.replace("�", " ")
-                if line.startswith('#'):
-                    continue
-                line = line.replace('\n', '')
-                data_list = line.split(sep) if sep else line.split()
-                buffer.append(get_data_dict(columns, data_list))
+        try:
+            with tqdm(total=numOfLines, desc=f"Converting {filename}") as pbar:
+                for line in infile:
+                    line = line.replace("�", " ")
+                    if line.startswith('#'):
+                        continue
+                    line = line.replace('\n', '')
+                    data_list = line.split(sep) if sep else line.split()
+                    buffer.append(get_data_dict(columns, data_list))
 
-                if len(buffer) >= buffer_size:
-                    table = Table.from_pylist(
-                        buffer,
-                        schema=pa_columns
-                    )
-                    if writer is None:
-                        writer = pq.ParquetWriter(output_path, schema=table.schema)
+                    if len(buffer) >= buffer_size:
+                        table = Table.from_pylist(
+                            buffer,
+                            schema=pa_columns
+                        )
+                        if writer is None:
+                            writer = pq.ParquetWriter(output_path, schema=table.schema)
 
-                    writer.write_table(table)
-                    buffer.clear()
-                pbar.update(1)
+                        writer.write_table(table)
+                        buffer.clear()
+                    pbar.update(1)
+        except BaseException as e:
+            if writer is not None:
+                writer.close()
+            raise
 
     if buffer:
         table = Table.from_pylist(
             buffer,
             schema=pa_columns
         )
-        writer.write_table(table)
+        try:
+            writer.write_table(table)
+        except Exception as e:
+            if writer is not None:
+                writer.close()
+            raise Exception(f"Error in writing data {e}")
         buffer.clear()
 
     if writer is None:
@@ -140,25 +151,30 @@ def prepare_mxm_dataset_train(file_path, output_dir, numOfLines, buffer_size=100
             ("mxm_track_id", int64())
         ] + [(word, int64()) for word in words])
     with open(tmp_file_path, "r", encoding="utf_8") as infile:
-        with tqdm(total=numOfLines, desc=f"Converting {filename}") as pbar:
-            for line in infile:
-                word_dict_tmp = word_dict
-                data = line.split(",")
-                word_dict_tmp = {words[int(word_id) - 1]: int(count) for word_id, count in (item.strip().split(":") for item in data[2:])}
-                word_dict_tmp = {word: word_dict_tmp.get(word, 0) for word in words}
-                buffer.append({"track_id": data[0], "mxm_track_id": int(data[1]), **word_dict_tmp})
+        try:
+            with tqdm(total=numOfLines, desc=f"Converting {filename}") as pbar:
+                for line in infile:
+                    word_dict_tmp = word_dict
+                    data = line.split(",")
+                    word_dict_tmp = {words[int(word_id) - 1]: int(count) for word_id, count in (item.strip().split(":") for item in data[2:])}
+                    word_dict_tmp = {word: word_dict_tmp.get(word, 0) for word in words}
+                    buffer.append({"track_id": data[0], "mxm_track_id": int(data[1]), **word_dict_tmp})
 
-                if len(buffer) >= buffer_size:
-                    table = Table.from_pylist(
-                        buffer, 
-                        schema=columns
-                    )
-                    if writer is None:
-                        writer = pq.ParquetWriter(output_path, schema=table.schema)
+                    if len(buffer) >= buffer_size:
+                        table = Table.from_pylist(
+                            buffer, 
+                            schema=columns
+                        )
+                        if writer is None:
+                            writer = pq.ParquetWriter(output_path, schema=table.schema)
 
-                    writer.write_table(table)
-                    buffer.clear()
-                pbar.update(1)
+                        writer.write_table(table)
+                        buffer.clear()
+                    pbar.update(1)
+        except BaseException as e:
+            if writer is not None:
+                writer.close()
+            raise
 
     print("Saving Dataframe to parquet...")
     if buffer:
@@ -166,7 +182,12 @@ def prepare_mxm_dataset_train(file_path, output_dir, numOfLines, buffer_size=100
             buffer,
             schema=columns
         )
-        writer.write_table(table)
+        try:
+            writer.write_table(table)
+        except Exception as e:
+            if writer is not None:
+                writer.close()
+            raise Exception(f"Error in writing data {e}")
         buffer.clear()
 
     if writer is None:
