@@ -6,7 +6,6 @@ class Classifier:
         self._Parquet_Data_dir = Parquet_Data_dir
         self._num_of_tracks_for_each_label = 500
         self._Labeled_tracks = None
-        print("in")
 
     def Label_Data(self, labels, Word2Vec : callable):
         if self._Labeled_tracks is not None:
