@@ -8,7 +8,7 @@ def Get_top_Tracks_SongIds(Data_folder, num_of_tracks):
     table = Merged_Song.iter_batches(batch_size=num_of_tracks)
 
     DataFrame = next(table).to_pandas()
-    DataFrame.index.name = "index_number"
+    DataFrame["index_number"] = range(0, len(DataFrame))
     columns = ["artist_name", "title", "play_count"]
     return DataFrame[columns]
 
@@ -52,5 +52,5 @@ def Get_TopTracks_ByGenre(Data_folder, num_of_tracks, genre, drop_genre=True):
         else:
             tracks_df = pd.concat([tracks_df, drop_majority_genre(filtered_table.head(num_of_tracks-len(tracks_df)))], axis=0)
             break
-    tracks_df.index.name = "index_number"
+    tracks_df["index_number"] = range(0, len(tracks_df))
     return tracks_df

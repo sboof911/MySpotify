@@ -4,3 +4,5 @@ tqdm
 IPython
 nltk
 pyspellchecker
+gensim
+scikit-learn
