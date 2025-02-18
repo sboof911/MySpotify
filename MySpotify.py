@@ -7,6 +7,8 @@ from PrepocessData.ConvertFiles import Convert_msd_to_parquet, Convert_Triplets_
 from PrepocessData.MergeData import Merge_All_Data
 
 from TopTracks.Top_Listen_Tracks import Get_Top_Tracks, Get_TopTracks_ByGenre
+
+from Recommendations.Recommendations import Recommendations
 DATA_FOLDER = "data/"
 PARQUET_FOLDER = "parquet/"
 
@@ -23,6 +25,8 @@ class MySpotify(Collections):
 
         if any([not os.path.exists(os.path.join(self._Data_folder, file)) for file in self.fileNames]):
             upzip_data(zipFile_abspath, self._Data_folder, self.fileNames)
+
+        self._Recommendations = Recommendations(os.path.join(self._Data_folder, PARQUET_FOLDER))
 
         super().__init__(os.path.join(self._Data_folder, PARQUET_FOLDER), debug)
         print("All files are present!")
