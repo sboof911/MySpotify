@@ -11,7 +11,6 @@ from nltk import download as nltk_download
 from nltk.stem import PorterStemmer
 from spellchecker import SpellChecker
 from gensim.models import Word2Vec
-from sklearn.cluster import KMeans
 
 from.Classifier import Classifier
 
@@ -48,11 +47,11 @@ class Collections(Classifier):
         nltk_download("stopwords")
         super().__init__(Parquet_Data_dir, debug)
 
-    def Get_tracks_data(self, tracks_ID_df, track_id):
+    def Get_tracks_data(self, tracks_ID_df, track_id_verbose=False):
         pf = ParquetFile(os.path.join(self._Parquet_Data_dir, "Merged_tracks_data.parquet"))
         Merge_DataFrame = pf.read().to_pandas()
         columns_to_return = ["artist_name", "title", "play_count"]
-        if track_id:
+        if track_id_verbose:
             columns_to_return.append("track_id")
         DataFrame = pd.DataFrame(columns=columns_to_return)
         filtered = Merge_DataFrame[Merge_DataFrame["track_id"].isin(tracks_ID_df["track_id"])]
@@ -69,13 +68,13 @@ class Collections(Classifier):
         pf = ParquetFile(os.path.join(self._Parquet_Data_dir, "mxm_dataset_train.parquet"))
         return pf.read().to_pandas()
 
-    def get_scores(self, pf, theme, words_in_theme, num_of_tracks, track_id=False):
+    def get_scores(self, pf, theme, words_in_theme, num_of_tracks, track_id_verbose=False):
         num_row_groups = pf.metadata.num_row_groups
         Scors_DataFrame = pd.DataFrame(columns=["track_id", "score"])
         with tqdm(total=int(num_row_groups), desc=f"Getting {theme} theme scores") as pbar:
             for rg in range(num_row_groups):
                 tmp_df = pd.DataFrame(columns=["track_id", "score"])
-                mxm_df :pd.DataFrame = pf.read_row_group(rg).to_pandas()
+                mxm_df : pd.DataFrame = pf.read_row_group(rg).to_pandas()
                 tmp_df["track_id"] = mxm_df["track_id"]
                 tmp_df["score"] = mxm_df[words_in_theme].sum(axis=1)
                 tmp_df.drop(tmp_df[tmp_df["score"] == 0].index, inplace=True)
@@ -85,7 +84,7 @@ class Collections(Classifier):
 
             Scors_DataFrame.sort_values(by="score", ascending=False, inplace=True)
             Scors_DataFrame.reset_index(drop=True, inplace=True)
-        return self.Get_tracks_data(Scors_DataFrame.head(num_of_tracks), track_id)
+        return self.Get_tracks_data(Scors_DataFrame.head(num_of_tracks), track_id_verbose)
 
     def Baseline(self, theme, num_of_tracks = 100):
         theme_keywords = get_word_themes(theme)
@@ -101,7 +100,7 @@ class Collections(Classifier):
 
         return self.get_scores(pf, theme, words_in_theme, num_of_tracks)
 
-    def Word2Vec(self, theme, num_of_tracks = 100, track_id=False):
+    def Word2Vec(self, theme, num_of_tracks = 100, track_id_verbose=False):
         theme_keywords = get_word_themes(theme)
         pf = ParquetFile(os.path.join(self._Parquet_Data_dir, "mxm_dataset_train.parquet"))
 
@@ -120,9 +119,27 @@ class Collections(Classifier):
 
         columns_in_theme = [word for word in expanded_keywords if word in words]
 
-        return self.get_scores(pf, theme, columns_in_theme, num_of_tracks, track_id)
+        return self.get_scores(pf, theme, columns_in_theme, num_of_tracks, track_id_verbose)
 
-    def Classification(self, labels, theme, num_of_tracks=100):
-        self.Label_Data(labels, self.Word2Vec)
+    def Classification(self, labels, theme, num_of_tracks=100, track_id_verbose=False):
+        if self._model is None:
+            self.Label_Data(labels, self.Word2Vec)
+            Data = self.Merge_Lyrics_with_Labels()
+            Data = self.Filter_Lyrics(Data, filter_words)
+            self.fit(Data)
+            Data = None
+        else:
+            print("Model is already fitted")
 
-        return None
+        pf = ParquetFile(os.path.join(self._Parquet_Data_dir, "mxm_dataset_train.parquet"))
+        num_row_groups = pf.metadata.num_row_groups
+        DataFrame = pd.DataFrame(columns=["track_id"])
+        with tqdm(total=int(num_row_groups), desc=f"Getting {theme} theme scores") as pbar:
+            for rg in range(num_row_groups):
+                mxm_df : pd.DataFrame = pf.read_row_group(rg).to_pandas()
+                predictions = self.predict_theme(mxm_df)
+                predictions_in_theme = predictions[predictions["theme_label"] == theme]
+                DataFrame = pd.concat([DataFrame, predictions_in_theme["track_id"]], axis=0)
+                pbar.update(1)
+
+        return self.Get_tracks_data(DataFrame.head(num_of_tracks), track_id_verbose=False)
