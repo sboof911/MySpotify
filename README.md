@@ -4,6 +4,11 @@ MySpotify is a Python-based data processing and recommendation system for music 
 
 ## Project Structure
 
+- **MySpotify.ipynb**
+  A Jupyter Notebook for interactive usage, testing, and demonstrations of the MySpotify functionalities.
+
+  - [`MySpotify notebook`](MySpotify.ipynb)
+
 - **MySpotify.py**  
   The main module that initializes the MySpotify class. It handles data unzipping and conversion, delegating tasks to other modules in the project. See [`MySpotify`](MySpotify.py) for details.
 
@@ -27,9 +32,6 @@ MySpotify is a Python-based data processing and recommendation system for music 
 
 - **TopTracks/**  
   Contains functions to retrieve the top listened tracks and top tracks by genre.
-
-- **MySpotify.ipynb**  
-  A Jupyter Notebook for interactive usage, testing, and demonstrations of the MySpotify functionalities.
 
 ## Libraries Used
 
