@@ -18,7 +18,7 @@ MySpotify is a Python-based data processing and recommendation system for music 
   - [`ReadZip.py`](PrepocessData/ReadZip.py) - Handles unzipping of data archives.  
   - [`ConvertFiles.py`](PrepocessData/ConvertFiles.py) - Converts datasets to parquet format.  
   - [`MergeData.py`](PrepocessData/MergeData.py) - Merges various datasets.  
-  - `utils.py` - Utility functions for data preprocessing.
+  - [`utils.py`](PrepocessData/utils.py) - Utility functions for data preprocessing.
 
 - **Recommendations/**  
     Module to generate music track recommendations. This module utilizes the AlternatingLeastSquares algorithm from `implicit.als` to classify and recommend music tracks.
