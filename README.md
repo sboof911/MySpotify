@@ -4,7 +4,7 @@ MySpotify is a Python-based data processing and recommendation system for music 
 
 ## Project Structure
 
-- **MySpotify.ipynb**
+- **MySpotify.ipynb**  
   A Jupyter Notebook for interactive usage, testing, and demonstrations of the MySpotify functionalities.
 
   - [`MySpotify notebook`](MySpotify.ipynb)
