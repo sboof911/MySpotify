@@ -129,7 +129,6 @@ class Recommendations:
             filtered.append((sim_song_id, score))
         sorted(filtered, key=lambda x: x[1], reverse=True)
         filtered = filtered[:num_of_tracks]
-        print(filtered)
         track_recommendations["song_id"] = [song_id for song_id, _ in filtered]
         track_recommendations["likelihood"] = [score for _, score in filtered]
 
